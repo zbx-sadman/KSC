@@ -17,7 +17,7 @@ Virtual keys for 'Host' object are:
 - _Status.{OK | Critical | Warning | Any }_ - Host(s) extended status: Any, OK, Critical, Warning;
 - _RTPState.{Unknown | Stopped | Suspended | Starting | Running | Failure}_ - Realtime protection on host is Unknown/Stopped/Suspended/etc;
 - _NotInstalledAVApplication_ - Anti-virus application is not installed on host;
-- _NotRunningAVApplication_ – Anti-virus application is installed but not running on host;
+- _NotRunningAVApplication_ â€“ Anti-virus application is installed but not running on host;
 - _NotRunningRTP_ -  Anti-virus application is installed but real-time protection is not running on host;
 - _TooMuchVirusesDetected_ - Number of viruses detected is too much on host;
 - _TooOldAVBases_ - Anti-virus bases were updated too long ago on host.
@@ -52,9 +52,6 @@ Actions
 
 
 ### How to use with Zabbix
-I recommend start use WSFC Miner as non-clustered service, tune it with Zabbix and make its clustered then.
-
-###How to use with Zabbix
 1. Just include [zbx_ksc.conf](https://github.com/zbx-sadman/ksc/tree/master/Zabbix_Templates/zbx_ksc.conf) to Zabbix Agent config;
 2. Put _ksc.ps1_ to _C:\zabbix\scripts\_ dir;
 3. Set Zabbix Agent's / Server's _Timeout_ to more that 3 sec (may be 10 or 30);
