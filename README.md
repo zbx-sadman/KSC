@@ -17,8 +17,8 @@ Virtual keys for 'Host' object are:
 - _Status.{OK | Critical | Warning | Any }_ - Host(s) extended status: Any, OK, Critical, Warning;
 - _RTPState.{Unknown | Stopped | Suspended | Starting | Running | Failure}_ - Realtime protection on host is Unknown/Stopped/Suspended/etc;
 - _NotInstalledAVApplication_ - Anti-virus application is not installed on host;
-- _NotRunningAVApplication_ – Anti-virus application is installed on host but not running;
-- _NotRunningRTP_ -  Anti-virus application is installed but real-time protection on host is not running;
+- _NotRunningAVApplication_ - Anti-virus application is installed on host but not running;
+- _NotRunningRTP_ - Anti-virus application is installed but real-time protection on host is not running;
 - _TooMuchVirusesDetected_ - Number of viruses detected  on host is too much;
 - _TooOldAVBases_ - Anti-virus bases on host were updated too long ago.
 
