@@ -20,7 +20,14 @@ Virtual keys for 'Host' object are:
 - _NotRunningAVApplication_ - Anti-virus application is installed on host but not running;
 - _NotRunningRTP_ - Anti-virus application is installed but real-time protection on host is not running;
 - _TooMuchVirusesDetected_ - Number of viruses detected  on host is too much;
-- _TooOldAVBases_ - Anti-virus bases on host were updated too long ago.
+- _TooOldAVBases_ - Anti-virus bases on host were updated too long ago;
+- _FullScanPerformedTooLongAgo_ - Full scan for viruses performed too long ago;
+- _AgentIsInactiveTooLong_ - Network agent is inactive too long;
+- _AVBasesAgeLess1Hr_ - Anti-virus bases were updated in last hour;
+- _AVBasesAgeIs24Hrs_ - Anti-virus bases were updated between an 1..24 hour ago;
+- _AVBasesAgeIs1-3Days_ - Anti-virus bases were updated between an 1..3 days ago;
+- _AVBasesAgeIs3-7Days_ - Anti-virus bases were updated between an 3..7 days ago;
+- _AVBasesAgeMoreThan7Days_ - Anti-virus bases were updated more than 7 days ago.
 
 Virtual keys for 'License' object are:
 - _TimeLeftToLicenseExpire_ - Time left to end of license (in seconds);

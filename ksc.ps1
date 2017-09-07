@@ -24,9 +24,9 @@
 
     .PARAMETER ObjectType
         Define rule to make collection:
-            Server    - KSC server;
             Host      - Managed server / workstation (IKlAkHosts class instance);
             License   - License data (IKlAkLicense class instance);
+            Server    - KSC server;
 
     .PARAMETER Key
         Define "path" to collection item's metric 
@@ -36,10 +36,17 @@
             Status.{OK | Critical | Warning | Any } - Host(s) extended status: Any, OK, Critical, Warning;
             RTPState.{Unknown | Stopped | Suspended | Starting | Running | Failure} - Realtime protection on host is Unknown/Stopped/Suspended/etc;
             NotInstalledAVApplication - Anti-virus application is not installed on host;
-            NotRunningAVApplication – Anti-virus application is installed but not running on host;
-            NotRunningRTP -  Anti-virus application is installed but real-time protection is not running on host;
-            TooMuchVirusesDetected - Number of viruses detected is too much on host;
-            TooOldAVBases - Anti-virus bases were updated too long ago on host;
+            NotRunningAVApplication - Anti-virus application is installed on host but not running;
+            NotRunningRTP - Anti-virus application is installed but real-time protection on host is not running;
+            TooMuchVirusesDetected - Number of viruses detected  on host is too much;
+            TooOldAVBases - Anti-virus bases on host were updated too long ago.
+            FullScanPerformedTooLongAgo - Full scan for viruses performed too long ago 
+            AgentIsInactiveTooLong - Network agent is inactive too long
+            AVBasesAgeLess1Hr - Anti-virus bases were updated in last hour
+            AVBasesAgeIs24Hrs - Anti-virus bases were updated between an 1..24 hour ago
+            AVBasesAgeIs1-3Days - Anti-virus bases were updated between an 1..3 days ago
+            AVBasesAgeIs3-7Days - Anti-virus bases were updated between an 3..7 days ago
+            AVBasesAgeMoreThan7Days - Anti-virus bases were updated more than 7 days ago
 
         Virtual keys for 'License' object are:
             TimeLeftToLicenseExpire - Time left to end of license (in seconds)
@@ -128,7 +135,7 @@ Param (
 [System.Threading.Thread]::CurrentThread.CurrentCulture = "en-US"
 
 # Width of console to stop breaking JSON lines
-Set-Variable -Option Constant -Name "CONSOLE_WIDTH" -Value 512
+Set-Variable -Option Constant -Name "CONSOLE_WIDTH" -Value 255
 
 Add-Type -TypeDefinition "public enum HostStatus { Any, OK, Critical, Warning, Unassigned}";
 Add-Type -TypeDefinition "public enum RTPState   { Unknown, Stopped, Suspended, Starting, Running, RunningMaxProtection, RunningMaxSpeed, RunningRecomendedSettings, RunningCustomSettings, Failure}";
@@ -142,19 +149,23 @@ Add-Type -TypeDefinition "public enum RTPState   { Unknown, Stopped, Suspended, 
 #  Select object with Property that equal Value if its given or with Any Property in another case
 #
 Function PropertyEqualOrAny {
+   [CmdletBinding()] 
    Param (
-      [Parameter(ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)]
       [PSObject]$InputObject,
-      [PSObject]$Property,
+      [String]$Property,
       [PSObject]$Value
    );
+   Begin {
+      $checkPropertyName  = $Property;
+      $checkPropertyValue = $Value;
+   }
    Process {
-      # Do something with all objects (non-pipelined input case)  
-      ForEach ($Object in $InputObject) { 
-         # IsNullorEmpty used because !$Value give a erong result with $Value = 0 (True).
-         # But 0 may be right ID  
-         If (($Object.$Property -Eq $Value) -Or ([string]::IsNullorEmpty($Value))) { $Object }
-      }
+#      If ($_.PSObject.Properties.Match($checkPropertyName).Count) {
+      If ($_ -and $_.PSObject.Properties[$checkPropertyName]){
+         if (($_.$checkPropertyName -Eq $checkPropertyValue) -Or [string]::IsNullorEmpty($checkPropertyValue)) { 
+         $_;
+      }}
    } 
 }
 
@@ -317,6 +328,7 @@ Function Exit-WithMessage {
 ####################################################################################################################################
 #$VerbosePreference = "continue";
 #$defaultConsoleWidth = $True;
+#$watch = [System.Diagnostics.Stopwatch]::StartNew()
 
 # split key to subkeys
 $Keys = $Key.Split(".");
@@ -338,7 +350,8 @@ $AdmServer = New-Object -COMObject "klakaut.KlAkProxy";
 Try {
     $AdmServer.Connect($SrvConnectionProps);
 } Catch {
-    Exit-WithMessage -Message "Connection Error" -ErrorCode $ErrorCode; 
+    $ErrorMsg = $Error[0].Exception.Message;
+    Exit-WithMessage -Message "Connection Error ($ErrorMsg)" -ErrorCode $ErrorCode; 
 }
 
 Write-Verbose "$(Get-Date) Connected successfully. Kaspersky Security Center build is $($AdmServer.Build)";
@@ -348,10 +361,11 @@ Write-Verbose "$(Get-Date) Prepare to fetch data for object type: '$ObjectType'"
 $Fileds2Return = New-Object -COMObject "klakaut.KlAkCollection";
 $Fileds2Order  = New-Object -COMObject "klakaut.KlAkCollection"; 
 $KLCollection = @();
-$IDFilterProperty = "";
-
+$FieldNames = @()
 # Make PS-Object collection from the KSC
 $Objects = @();
+
+$IDFilterProperty = "";
 
 $NeedToConvertData = $True;
 # Prepare fields and perform request(s) to KSC COM-object to get some data
@@ -370,69 +384,73 @@ Switch ($ObjectType) {
       $KLHosts = New-Object -COMObject "klakaut.KlAkHosts";
       $KLHosts.AdmServer = $AdmServer;
 
-      # Make 'pFields2Return' structure from array of attrib's names
-      $FieldNames = ("KLHST_WKS_STATUS_ID", "KLHST_WKS_ID", "KLHST_WKS_DN", "KLHST_WKS_GROUPID", "KLHST_WKS_VIRUS_COUNT", "KLHST_WKS_DNSNAME", "KLHST_WKS_STATUS_MASK");
-      $FieldNames | % {$Fileds2Return.SetSize($FieldNames.Count); $i = 0} {$Fileds2Return.SetAt($i, $_); $i++; }
-
       Switch ($Keys[0]) { 
-        'Unassigned' {
-            $StrFilter = "KLHST_WKS_FROM_UNASSIGNED = `"True`"";
-        }
-        'Status' { 
-            # Make query only if $Value is valid
-            if ($Keys[1] ) {                  
-               $StrFilter = 'KLHST_WKS_STATUS_ID ="' + $(
-                     Switch ($Keys[1]) { 
-                       'OK'       { "0" }
-                       'Critical' { "1" }
-                       'Warning'  { "2" }
-                       'Any'      { "*" }
-                     } 
-               ) +'"';
-            } Else { Exit-WithMessage -Message "Unknown Subkey" -ErrorCode $ErrorCode; }
-        }
+        'Unassigned' { $StrFilter = "KLHST_WKS_FROM_UNASSIGNED = `"True`""; }
+        'Status'     { If ($Keys[1] ) {                  
+                          $FieldNames += "KLHST_WKS_STATUS_ID";
+                          # Make query only if $Value is valid
+                          $StrFilter = 'KLHST_WKS_STATUS_ID ="' + $(
+                             Switch ($Keys[1]) { 
+                               'OK'       { "0" }
+                               'Critical' { "1" }
+                               'Warning'  { "2" }
+                               'Any'      { "*" }
+                             } 
+                          ) +'"';
+                       } Else { Exit-WithMessage -Message "Unknown Subkey" -ErrorCode $ErrorCode; }
+                     }
 
-        'RTPState' { 
-            # Make query only if $Value is valid
-            if ($Keys[1] -As [RTPState]) {
-               $Fileds2Return.SetAt(0, "KLHST_WKS_RTP_STATE");
-               # Convert 'RTPState' string representation to integer
-               $StrFilter = "KLHST_WKS_RTP_STATE = $([int32] ($Keys[1] -As [RTPState]))";
-               Write-Host $StrFilter;
-            } Else { 
-              Exit-WithMessage -Message "Unknown Subkey '$($Keys[1])'" -ErrorCode $ErrorCode; }
-         }
+        # Make query only if $Value is valid
+        # Convert 'RTPState' string representation to integer
+        'RTPState' {  If ($Keys[1] -As [RTPState]) { $FieldNames += "KLHST_WKS_RTP_STATE"; $StrFilter = "KLHST_WKS_RTP_STATE = `"$([int32] ($Keys[1] -As [RTPState]))`"";
+                      } Else { Exit-WithMessage -Message "Unknown Subkey '$($Keys[1])'" -ErrorCode $ErrorCode;  }
+                   }
 
-        'NotRunningRTP' { 
-            # Bit 1 – Anti-virus application is installed but real-time protection is not running 
-            $StrFilter = "KLHST_WKS_STATUS_MASK_1 <> 0";
-        }
+        # Bit 1 - Anti-virus application is installed but real-time protection is not running 
+        'NotRunningRTP' { $StrFilter = "KLHST_WKS_STATUS_MASK_1 <> 0"; }
 
-        'NotRunningAVApplication' { 
-            # Bit 2 – Anti-virus application is installed but not running 
-            $StrFilter = "KLHST_WKS_STATUS_MASK_2 <> 0";
-        }
+        # Bit 2 - Anti-virus application is installed but not running 
+        'NotRunningAVApplication' { $StrFilter = "KLHST_WKS_STATUS_MASK_2 <> 0"; }
 
-        'TooMuchVirusesDetected' { 
-            # Bit 3 – Number of viruses detected is too much 
-            $StrFilter = "KLHST_WKS_STATUS_MASK_3 <> 0";
-        }
+        # Bit 3 - Number of viruses detected is too much 
+        'TooMuchVirusesDetected' { $StrFilter = "KLHST_WKS_STATUS_MASK_3 <> 0"; }
 
-        'NotInstalledAVApplication' { 
-            # Bit 5 – Anti-virus application is not installed 
-            $StrFilter = "KLHST_WKS_STATUS_MASK_5 <> 0";
-        }
+        # Bit 5 - Anti-virus application is not installed 
+        'NotInstalledAVApplication' { $StrFilter = "KLHST_WKS_STATUS_MASK_5 <> 0"; }
 
-        'TooOldAVBases' { 
-            # Bit 7 – Anti-virus bases were updated too long ago 
-            $StrFilter = "KLHST_WKS_STATUS_MASK_7 <> 0";
-        }
+        # Bit 6 - Full scan for viruses performed too long ago 
+        'FullScanPerformedTooLongAgo' { $StrFilter = "KLHST_WKS_STATUS_MASK_6 <> 0"; }
 
-         Default {
-            $StrFilter = $(If ($Id) { "KLHST_WKS_ID = $Id" } Else { "KLHST_WKS_DN = `"*`"" } );
-         }
+        # Bit 7 - Anti-virus bases were updated too long ago 
+        'TooOldAVBases' { $StrFilter = "KLHST_WKS_STATUS_MASK_7 <> 0"; }
+
+        # Bit 8 - Network agent is inactive too long
+        'AgentIsInactiveTooLong' { $StrFilter = "KLHST_WKS_STATUS_MASK_8 <> 0"; }
+
+        # Anti-virus bases were updated in last hour
+        'AVBasesAgeLess1Hr'       {  $StrFilter = "(& (KLHST_WKS_RTP_AV_BASES_TIME > CURTIME(-3600)))"; }
+
+        # Anti-virus bases were updated between an 1..24 hour ago
+        'AVBasesAgeIs24Hrs'       {  $StrFilter = "(& (KLHST_WKS_LAST_INFOUDATE > CURTIME(-86400)) (KLHST_WKS_LAST_INFOUDATE < CURTIME(-3600)))"; }
+
+        # Anti-virus bases were updated between an 1..3 days ago
+        'AVBasesAgeIs1-3Days'     {  $StrFilter = "(& (KLHST_WKS_LAST_INFOUDATE > CURTIME(-259200)) (KLHST_WKS_LAST_INFOUDATE < CURTIME(-86400)))"; }
+
+        # Anti-virus bases were updated between an 3..7 days ago
+        'AVBasesAgeIs3-7Days'     {  $StrFilter = "(& (KLHST_WKS_LAST_INFOUDATE > CURTIME(-604800)) (KLHST_WKS_LAST_INFOUDATE < CURTIME(-259200)))"; }
+
+        # Anti-virus bases were updated more than 7 days ago
+        'AVBasesAgeMoreThan7Days' {  $StrFilter = "(& (KLHST_WKS_RTP_AV_BASES_TIME < CURTIME(-604800)))"; }
+
+         Default { $StrFilter = $(If ($Id) { "KLHST_WKS_ID = $Id" } Else { "KLHST_WKS_DN = `"*`"" } ); }
 
       } # Switch ($Keys[0])
+
+      # Make 'pFields2Return' structure from array of attrib's names
+      $FieldNames += ( "KLHST_WKS_RTP_AV_BASES_TIME", "KLHST_WKS_ID", "KLHST_WKS_DN", "KLHST_WKS_GROUPID", "KLHST_WKS_DNSNAME", "KLHST_WKS_STATUS_MASK");
+      $FieldNames | % {$Fileds2Return.SetSize($FieldNames.Count); $i = 0} {$Fileds2Return.SetAt($i, $_); $i++; }
+
+      $StrFilter = "(& ($StrFilter)(KLHST_WKS_FROM_UNASSIGNED = `"False`"))";
       $KLCollection = $KLHosts.FindHosts($StrFilter, $Fileds2Return, $Fileds2Order);
       $IDFilterProperty = "KLHST_WKS_ID";
   }
@@ -450,13 +468,14 @@ Switch ($ObjectType) {
   }
 } # switch ($Object)
 
+
 If ($NeedToConvertData) {
-   # Make PS-Object collection from the COM-object data
+   $Properties = @{};
    ForEach ($KLCollectionItem in $KLCollection) {
-      $Object = New-Object PSObject;
-      ForEach ($Filed2Return in $Fileds2Return) {
-         Add-Member -InputObject $Object -MemberType 'NoteProperty' -Name $Filed2Return -Value $KLCollectionItem.Item($Filed2Return);
-      }
+      $Properties.Clear();
+      $Fileds2Return | % { $Properties.$_= $KLCollectionItem.Item($_); }
+       # Make PS-Object collection from the COM-object data
+      $Object = New-Object PSObject -Property $Properties;
       $Objects +=$Object;
    }
 }
@@ -464,7 +483,7 @@ If ($NeedToConvertData) {
 # Diconnect from KSC
 $AdmServer.Disconnect();
 
-$Objects = PropertyEqualOrAny -InputObject $Objects -Property $IDFilterProperty -Value $Id;
+$Objects = @($Objects | PropertyEqualOrAny -Property $IDFilterProperty -Value $Id);
 
 # PS-Object collection post-processing
 Switch ($ObjectType) {
@@ -476,7 +495,7 @@ Switch ($ObjectType) {
     }
 }
 
-#$Objects | ft *
+#$Objects | Sort-Object "KLHST_WKS_DN" | ft *
 #exit;
 Write-Verbose "$(Get-Date) Collection created, begin processing its with action: '$Action'";
 
@@ -499,24 +518,13 @@ Switch ($Action) {
    # Get-Metric can return an array of objects. In this case need to take each item and add its to $r
    'Sum' {
       Write-Verbose "$(Get-Date) Sum objects";  
-      $Result = $( 
-         If ($Objects) { 
-            $Result = 0;
-            ForEach ($Object in $Objects) {
-               $Mtr = Get-Metric -InputObject $Object -Keys $Keys;
-               Write-Host $Mtr;
-               $Result += $Mtr;
-            }
-            $Result
-         } Else { 0 } 
-      ); 
+      $Result = $(If ($Objects) { ($Objects | ForEach-Object {$Sum = 0;} {$Sum += Get-Metric -InputObject $_ -Keys $Keys; } {$Sum}) } else { 0 } ); 
+      
    }
    'Count' { 
       Write-Verbose "$(Get-Date) Counting objects";  
-      $Count = 0;
-      # ++ must be faster that .Count, due don't enumerate object list
-      ForEach ($Object in $Objects) { $Count++; }
-      $Result = $Count;
+      # if result not null, False or 0 - return .Count
+      $Result = $(If ($Objects) { @($Objects).Count } else { 0 } ); 
    }
 }
 
