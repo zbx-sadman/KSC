@@ -333,7 +333,7 @@ Function Exit-WithMessage {
 # split key to subkeys
 $Keys = $Key.Split(".");
 
-If ([string]::IsNullorEmpty($AdmServerLocation)) { $AdmServerLocation = "localhost:13000"; }
+$AdmServerLocation = If ([string]::IsNullorEmpty($ServerAddress)) { "localhost:13000"; } Else { $ServerAddress; }
 Write-Verbose "$(Get-Date) Connecting to Kaspersky Security Center on $AdmServerLocation";
 
 # Connecting to Administration Server of KSC 
