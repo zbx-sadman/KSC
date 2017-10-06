@@ -385,6 +385,8 @@ Switch ($ObjectType) {
                                                  "IsAlive" = $AdmServer.GetProp("IsAlive");
                                                  "SAASBlocked" = $AdmServer.GetProp("KLADMSRV_SAAS_BLOCKED");
                                                };
+      # Stub Filter Property for PropertyEqualOrAny() filter passing below
+      $IDFilterProperty = "Build";
     }
 
    # Fetch Hosts info
@@ -490,7 +492,6 @@ If ($NeedToConvertData) {
 
 # Diconnect from KSC
 $AdmServer.Disconnect();
-
 $Objects = @($Objects | PropertyEqualOrAny -Property $IDFilterProperty -Value $Id);
 
 # PS-Object collection post-processing
@@ -503,7 +504,7 @@ Switch ($ObjectType) {
     }
 }
 
-#$Objects | Sort-Object "KLHST_WKS_DN" | ft *
+#$Objects #| Sort-Object "KLHST_WKS_DN" | ft *
 #exit;
 Write-Verbose "$(Get-Date) Collection created, begin processing its with action: '$Action'";
 
