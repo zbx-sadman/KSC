@@ -6,11 +6,13 @@
         Return Kaspersky Security Center Server metric values, sum & count selected objects, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 0.9
+        Version: 0.99
         Name: KSC Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 05SEP2017
-        Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Kaspersky Security Center 10
+        DateCreated: 25SEP2017
+        Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Kaspersky Security Center 10 SP2
+
+        *** PLEASE CHOOSE RIGHT KSC ADM SERVER DEFAULT LOCATION - DefaultAdmServerLocation constant ***
 
     .LINK  
         https://github.com/zbx-sadman
@@ -136,6 +138,12 @@ Param (
 
 # Width of console to stop breaking JSON lines
 Set-Variable -Option Constant -Name "CONSOLE_WIDTH" -Value 255
+
+# KSC 10 default address:port
+#Set-Variable -Option Constant -Name "DefaultAdmServerLocation" -Value "127.0.0.1:13000"
+
+# KSC 10 SP2 default address:port
+Set-Variable -Option Constant -Name "DefaultAdmServerLocation" -Value "127.0.0.1:13291"
 
 Add-Type -TypeDefinition "public enum HostStatus { Any, OK, Critical, Warning, Unassigned}";
 Add-Type -TypeDefinition "public enum RTPState   { Unknown, Stopped, Suspended, Starting, Running, RunningMaxProtection, RunningMaxSpeed, RunningRecomendedSettings, RunningCustomSettings, Failure}";
@@ -333,7 +341,7 @@ Function Exit-WithMessage {
 # split key to subkeys
 $Keys = $Key.Split(".");
 
-$AdmServerLocation = If ([string]::IsNullorEmpty($ServerAddress)) { "localhost:13000"; } Else { $ServerAddress; }
+$AdmServerLocation = If ([string]::IsNullorEmpty($ServerAddress)) { $DefaultAdmServerLocation; } Else { $ServerAddress; }
 Write-Verbose "$(Get-Date) Connecting to Kaspersky Security Center on $AdmServerLocation";
 
 # Connecting to Administration Server of KSC 

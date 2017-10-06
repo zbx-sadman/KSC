@@ -1,10 +1,10 @@
 ## KSC Miner 
 This is a little Powershell script help to fetch metric's values from Kaspersky Security Center (KSC).
 
-Actual release 0.9
+Actual release 0.99
 
 Tested on:
-- Production mode: Windows Server 2008 R2 SP1, Powershell 2, Kaspersky Security Center 10
+- Production mode: Windows Server 2008 R2 SP1, Powershell 2, Kaspersky Security Center 10 SP2
  
 Supported objects:
 
@@ -69,7 +69,7 @@ Actions
 Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .xml file and make some changes at discovery_rule - filter tags area and change _#_ to _<>_ in trigger expressions. I will try to make template to old Zabbix.
 
 **Note**
-You may need to use domain user credientals to access KSC. Refer to _Username_ / _Userpass_ / _UserDomain_ options.
+It is possible that you will need to provide the script with the credentials of user from the _KLAdmins_ group to connect to the server. Refer to _Username_ / _Userpass_ / _UserDomain_ options.
 
 **Note**
 All available options are described in head of the script file.
