@@ -376,6 +376,8 @@ $Objects = @();
 $IDFilterProperty = "";
 
 $NeedToConvertData = $True;
+$OnlyUnassignedWks = $False;
+
 # Prepare fields and perform request(s) to KSC COM-object to get some data
 Switch ($ObjectType) {
    'Server' {
@@ -395,7 +397,7 @@ Switch ($ObjectType) {
       $KLHosts.AdmServer = $AdmServer;
 
       Switch ($Keys[0]) { 
-        'Unassigned' { $StrFilter = "KLHST_WKS_FROM_UNASSIGNED = `"True`""; }
+        'Unassigned' { $StrFilter = ""; $OnlyUnassignedWks = $True; }
         'Status'     { If ($Keys[1] ) {                  
                           $FieldNames += "KLHST_WKS_STATUS_ID";
                           # Make query only if $Value is valid
@@ -460,7 +462,7 @@ Switch ($ObjectType) {
       $FieldNames += ( "KLHST_WKS_RTP_AV_BASES_TIME", "KLHST_WKS_ID", "KLHST_WKS_DN", "KLHST_WKS_GROUPID", "KLHST_WKS_DNSNAME", "KLHST_WKS_STATUS_MASK");
       $FieldNames | % {$Fileds2Return.SetSize($FieldNames.Count); $i = 0} {$Fileds2Return.SetAt($i, $_); $i++; }
 
-      $StrFilter = "(& ($StrFilter)(KLHST_WKS_FROM_UNASSIGNED = `"False`"))";
+      $StrFilter = $(If ($OnlyUnassignedWks) {"(KLHST_WKS_FROM_UNASSIGNED = `"True`")"} Else {"(& ($StrFilter)(KLHST_WKS_FROM_UNASSIGNED = `"False`"))"}) ;
       $KLCollection = $KLHosts.FindHosts($StrFilter, $Fileds2Return, $Fileds2Order);
       $IDFilterProperty = "KLHST_WKS_ID";
   }
