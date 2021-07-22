@@ -414,7 +414,7 @@ Switch ($ObjectType) {
 
         # Make query only if $Value is valid
         # Convert 'RTPState' string representation to integer
-        'RTPState' {  If ( ($Keys[1] -As [RTPState]) -ne $null) { $FieldNames += "KLHST_WKS_RTP_STATE"; $StrFilter = "KLHST_WKS_RTP_STATE = `"$([int32] ($Keys[1] -As [RTPState]))`"";
+        'RTPState' {  If (($Keys[1] -As [RTPState]) -ne $null) { $FieldNames += "KLHST_WKS_RTP_STATE"; $StrFilter = "KLHST_WKS_RTP_STATE = `"$([int32] ($Keys[1] -As [RTPState]))`"";
                       } Else { Exit-WithMessage -Message "Unknown Subkey '$($Keys[1])'" -ErrorCode $ErrorCode;  }
                    }
 
