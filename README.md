@@ -5,6 +5,7 @@ Actual release 0.99
 
 Tested on:
 - Production mode: Windows Server 2008 R2 SP1, Powershell 2, Kaspersky Security Center 10 SP2
+- Production mode:	Windows Server 2019 Standard, Powershell 5.1, Kaspersky Security Center 12.2.0.4376
  
 Supported objects:
 
